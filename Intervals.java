@@ -91,6 +91,9 @@ enum Spacing {
                 nameSpacing = spacing.getName();
             }
         }
+        if (nameSpacing == null) {
+            throw new RuntimeException("Невозможно опреденить интервал");
+        }
         return nameSpacing;
     }
 }
