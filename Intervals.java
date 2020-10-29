@@ -1,3 +1,7 @@
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+
 public class Intervals {
 
     public static String intervalConstruction(String[] args) {
@@ -7,7 +11,7 @@ public class Intervals {
         Spacing spacing = Spacing.valueOf(args[0]);
         int spacingInDegrees = spacing.getDegrees();
         int spacingInSemitone = spacing.getSemitone();
-        int indexInArray = startNote.getIndexInArray();
+        int indexInArray = startNote.getIndexPassage();
         Note incompleteNote = Note.incompleteNote(spacingInDegrees, startNote.getId(), ascTrueDscFalse);
         if (ascTrueDscFalse) {
             spacingInSemitone = Note.semitonesAtAsc(args[1], spacingInSemitone, indexInArray);
@@ -15,10 +19,10 @@ public class Intervals {
             spacingInSemitone = Note.semitonesAtDsc(args[1], spacingInSemitone, indexInArray);
         }
         String resultNote;
-        if (Note.getArrayForPassage()[spacingInSemitone].length() == 1) {
+        if (Note.listForPassage.get(spacingInSemitone).length() == 1) {
             resultNote = Note.resultNoteAssumingOneChar(incompleteNote, spacingInSemitone);
         } else {
-            resultNote = Note.resultNoteNoAssumingOneChar(incompleteNote, spacingInSemitone);
+            resultNote = Note.resultNoteAssumingNoOneChar(incompleteNote, spacingInSemitone);
         }
         return resultNote;
     }
@@ -32,7 +36,7 @@ public class Intervals {
         int startSemitone = Note.startSemitone(startNote, args[0]);
         int endSemitone = Note.endSemitone(endNote, args[1], ascTrueDscFalse);
         int semitone = Note.spacingSemitone(startSemitone, endSemitone, ascTrueDscFalse);
-        return Spacing.nameInterval(degree, semitone);
+        return Spacing.nameSpacing(degree, semitone);
     }
 
     private static void checkingTheNumberOfItems(String[] inputArray) {
@@ -79,24 +83,15 @@ enum Spacing {
         return semitone;
     }
 
-    @Override
-    public String toString() {
-        return "Intervals{" +
-                "name='" + name + '\'' +
-                ", degrees=" + degrees +
-                ", semitone=" + semitone +
-                '}';
-    }
-
-    public static String nameInterval(int degrees, int semitone) {
-        String intervalName = null;
+    public static String nameSpacing(int degrees, int semitone) {
+        String nameSpacing = null;
         Spacing[] arraySpacing = Spacing.values();
         for (Spacing spacing : arraySpacing) {
             if (spacing.getDegrees() == degrees && spacing.getSemitone() == semitone) {
-                intervalName = spacing.getName();
+                nameSpacing = spacing.getName();
             }
         }
-        return intervalName;
+        return nameSpacing;
     }
 }
 
@@ -110,33 +105,22 @@ enum Note {
     A(6, "Ab", "A", "A#", 9),
     B(7, "Bb", "B", null, 11);
 
-    static final String[] arrayForPassage = {
-            C.name,
-            C.right + "|" + D.left,
-            D.name,
-            D.right + "|" + E.left,
-            E.name,
-            F.name,
-            F.right + "|" + G.left,
-            G.name,
-            G.right + "|" + A.left,
-            A.name,
-            A.right + "|" + B.left,
-            B.name
-    };
+    static String temporaryStorage;
+
+    static final List<String> listForPassage = arrayStream();
 
     private final int id;
     private final String left;
-    private final String name;
+    private final String centre;
     private final String right;
-    private final int indexInArray;
+    private final int indexPassage;
 
-    Note(int id, String left, String name, String right, int indexInArray) {
+    Note(int id, String left, String centre, String right, int indexPassage) {
         this.id = id;
         this.left = left;
-        this.name = name;
+        this.centre = centre;
         this.right = right;
-        this.indexInArray = indexInArray;
+        this.indexPassage = indexPassage;
     }
 
     public int getId() {
@@ -147,31 +131,44 @@ enum Note {
         return left;
     }
 
-    public String getName() {
-        return name;
+    public String getCentre() {
+        return centre;
     }
 
     public String getRight() {
         return right;
     }
 
-    public int getIndexInArray() {
-        return indexInArray;
+    public static String getTemporaryStorage() {
+        return temporaryStorage;
     }
 
-    public static String[] getArrayForPassage() {
-        return arrayForPassage;
+    public int getIndexPassage() {
+        return indexPassage;
     }
 
-    @Override
-    public String toString() {
-        return "Note{" +
-                "id=" + id +
-                ", left='" + left + '\'' +
-                ", name='" + name + '\'' +
-                ", right='" + right + '\'' +
-                ", indexInArray=" + indexInArray +
-                '}';
+    static List<String> arrayStream() {
+        LinkedList<String> listNotesPassage = new LinkedList<>();
+        Arrays.stream(values()).sorted().forEach(note -> addInList(note, listNotesPassage));
+        return listNotesPassage;
+    }
+
+    static void addInList(Note note, List<String> list) {
+        filterList(note.getLeft(), list);
+        filterList(note.getCentre(), list);
+        filterList(note.getRight(), list);
+    }
+
+    static void filterList(String name, List<String> list) {
+        if (name != null && name.length() == 2 && String.valueOf(name.charAt(1)).equals("b")) {
+            list.add(getTemporaryStorage() + "|" + name);
+        }
+        if (name != null && name.length() == 1) {
+            list.add(name);
+        }
+        if (name != null && name.length() == 2 && String.valueOf(name.charAt(1)).equals("#")) {
+            temporaryStorage = name;
+        }
     }
 
     public static boolean sortOrder(String[] args) {
@@ -180,31 +177,22 @@ enum Note {
 
     public static Note incompleteNote(int spacingInDegrees, int idStartNote, boolean ascTrueDscFalse) {
         int numberDegrees;
-        if (!ascTrueDscFalse) {
-            numberDegrees = idStartNote - spacingInDegrees + 1;
-            if (numberDegrees < 1) {
-                numberDegrees += 7;
-            }
-        } else {
-            numberDegrees = idStartNote + spacingInDegrees - 1;
-            if (numberDegrees > 7) {
+        if (ascTrueDscFalse) {
+            numberDegrees = idStartNote + spacingInDegrees - 2;
+            if (numberDegrees > 6) {
                 numberDegrees -= 7;
             }
-        }
-        return noteByIndex(numberDegrees);
-    }
-
-    public static Note noteByIndex(int index) {
-        Note[] notes = Note.values();
-        for (Note note : notes) {
-            if (note.getId() == index) {
-                return note;
+        } else {
+            numberDegrees = idStartNote - spacingInDegrees;
+            if (numberDegrees < 0) {
+                numberDegrees += 7;
             }
         }
-        return null;
+        List<Note> notesList = Arrays.asList(Note.values());
+        return notesList.get(numberDegrees);
     }
 
-    public static int semitonesAtAsc(String note, int spacingInSemitone, int indexInArray) {
+    public static int semitonesAtAsc(String note, int spacingInSemitone, int indexPassage) {
         if (note.length() > 1) {
             String valueTwo = String.valueOf(note.charAt(1));
             if (valueTwo.equals("#")) {
@@ -213,15 +201,15 @@ enum Note {
                 spacingInSemitone -= 1;
             }
         }
-        spacingInSemitone = spacingInSemitone + indexInArray;
+        spacingInSemitone = spacingInSemitone + indexPassage;
         if (spacingInSemitone > 11) {
             spacingInSemitone = spacingInSemitone - 12;
         }
         return spacingInSemitone;
     }
 
-    public static int semitonesAtDsc(String note, int spacingInSemitone, int indexInArray) {
-        int result = indexInArray;
+    public static int semitonesAtDsc(String note, int spacingInSemitone, int indexPassage) {
+        int result = indexPassage;
         if (note.length() > 1) {
             String string2 = String.valueOf(note.charAt(1));
             if (string2.equals("#")) {
@@ -253,10 +241,10 @@ enum Note {
         }
     }
 
-    public static int startSemitone(Note startNote, String argStartNote) {
-        int numberStartSemitone = startNote.getIndexInArray();
-        if (argStartNote.length() == 2) {
-            String string = String.valueOf(argStartNote.charAt(1));
+    public static int startSemitone(Note startNote, String wholeStartingNote) {
+        int numberStartSemitone = startNote.getIndexPassage();
+        if (wholeStartingNote.length() == 2) {
+            String string = String.valueOf(wholeStartingNote.charAt(1));
             if (string.equals("#")) {
                 numberStartSemitone += 1;
             } else {
@@ -266,12 +254,12 @@ enum Note {
         return numberStartSemitone;
     }
 
-    public static String resultNoteNoAssumingOneChar(Note incompleteNote, int spacingInSemitone) {
-        String[] arrayTwoNotes = Note.getArrayForPassage()[spacingInSemitone].split("\\|");
+    public static String resultNoteAssumingNoOneChar(Note incompleteNote, int spacingInSemitone) {
+        String[] arrayTwoNotes = Note.listForPassage.get(spacingInSemitone).split("\\|");
         String resultNote = "";
         for (String noteArray : arrayTwoNotes) {
             String oneCleanNoteOfTwo = String.valueOf(noteArray.charAt(0));
-            if (oneCleanNoteOfTwo.equals(incompleteNote.getName())) {
+            if (oneCleanNoteOfTwo.equals(incompleteNote.getCentre())) {
                 resultNote = noteArray;
             }
         }
@@ -279,18 +267,17 @@ enum Note {
     }
 
     public static String resultNoteAssumingOneChar(Note incompleteNote, int spacingInSemitone) {
-        int idForArrayClean = incompleteNote.getIndexInArray();
-        if (spacingInSemitone < idForArrayClean) {
-            return incompleteNote.getName() + "bb";
+        if (spacingInSemitone < incompleteNote.getIndexPassage()) {
+            return incompleteNote.getCentre() + "bb";
         }
-        if (spacingInSemitone > idForArrayClean) {
-            return incompleteNote.getName() + "##";
+        if (spacingInSemitone > incompleteNote.getIndexPassage()) {
+            return incompleteNote.getCentre() + "##";
         }
-        return incompleteNote.getName();
+        return incompleteNote.getCentre();
     }
 
     public static int endSemitone(Note endNote, String argEndNote, boolean ascTrueDscFalse) {
-        int numberEndSemitone = endNote.getIndexInArray();
+        int numberEndSemitone = endNote.getIndexPassage();
         if (argEndNote.length() > 1) {
             String charOne = String.valueOf(argEndNote.charAt(0));
             String charTwo = String.valueOf(argEndNote.charAt(1));
