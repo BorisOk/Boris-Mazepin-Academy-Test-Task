@@ -92,7 +92,7 @@ enum Spacing {
             }
         }
         if (nameSpacing == null) {
-            throw new RuntimeException("Невозможно опреденить интервал");
+            throw new RuntimeException("Невозможно определить интервал");
         }
         return nameSpacing;
     }
